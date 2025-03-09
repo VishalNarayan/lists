@@ -1,101 +1,239 @@
-import Image from "next/image";
+"use client"
+import React, { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 
-export default function Home() {
+export default function ListsApp() {
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [step, setStep] = useState("enterPhone");
+  const [lists, setLists] = useState(() => {
+    return [];
+  });
+  const [expandedList, setExpandedList] = useState(null);
+  const [newList, setNewList] = useState("");
+  const [newItems, setNewItems] = useState({});
+
+  useEffect(() => {
+    fetchLists();
+  }, []);
+
+  const updateLists = async (newLists) => {
+    setLists(newLists);
+    const token = localStorage.getItem("authToken");
+    await fetch("/api/lists", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ phone, name: newList }),
+    });
+    fetchLists();
+  };
+
+  const addList = () => {
+    if (newList) {
+      updateLists([...lists, { name: newList, items: [], id: "temp_id" }]);
+      setNewList("");
+    }
+  };
+
+  const deleteList = async (id) => {
+    const token = localStorage.getItem("authToken");
+    const res = await fetch(`/api/lists?id=${id}`, { method: "DELETE", headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`,
+    }, });
+    const data = await res.json();
+    if (data.success) {
+      setLists(lists.filter((list) => list.id !== id)); // Remove from UI
+    } else {
+      alert("Error deleting list");
+    }
+  };
+
+  const toggleList = (index) => {
+    setExpandedList(expandedList === index ? null : index);
+  };
+
+  const addItem = async (listId, text) => {
+    if (!text) return;
+    if (!newItems[listId]) return;
+    const res = await fetch("/api/items", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ listId, text })
+    });
+    const data = await res.json();
+    console.log('Api response:', data);
+    if (data.success) {
+      console.log('success');
+      setLists(lists.map((list) => list.id === listId ? { ...list, items: [...list.items, data.item] } : list));
+      setNewItems((prev) => ({ ...prev, [listId]: "" }));
+    } else {
+      alert("Error adding item");
+    }
+  };
+
+  const removeItem = async (id, listId) => {
+    const res = await fetch(`/api/items?id=${id}`, { method: "DELETE" });
+    const data = await res.json();
+    if (data.success) {
+      setLists(lists.map((list) => list.id === listId ? { ...list, items: list.items.filter((item) => item.id !== id) } : list));
+    } else {
+      alert("Error deleting item");
+    }
+  };
+
+  const toggleItem = async (id, checked, listId) => {
+    const res = await fetch("/api/items", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, checked: !checked }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setLists(lists.map((list) => list.id === listId ? {
+        ...list,
+        items: list.items.map((item) => item.id === id ? { ...item, checked: !checked } : item),
+      } : list));
+    } else {
+      alert("Error updating item");
+    }
+  };
+
+  const sendOtp = async () => {
+
+
+    const res = await fetch("/api/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ "phone":phone }),
+    });
+
+    const data = await res.json();
+    if (data.success) setStep("enterOtp");
+    else alert("Error sending OTP");
+  };
+
+  const fetchLists = async() => {
+    const token = localStorage.getItem("authToken");
+    if (!token) return;
+    setIsAuthenticated(true);
+    setPhone(localStorage.getItem("phone"));
+    const res = await fetch("/api/lists", {
+      headers: { "Authorization": `Bearer ${token}` },
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      const listsWithItems = await Promise.all(
+        data.lists.map(async (list) => {
+          console.log("List ID: ", list.id);
+          const itemsRes = await fetch(`/api/items?listId=${list.id}`);
+          const itemsData = await itemsRes.json();
+          itemsData.items.forEach(item => console.log("Item ID:", item.id));
+          return { ...list, items: itemsData.success ? itemsData.items: []};
+        })
+      );
+      console.log(listsWithItems);
+      setLists(listsWithItems);
+    }
+  }
+
+  const verifyOtp = async () => {
+    const res = await fetch("/api/verify-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ phone, code: otp }),
+    });
+
+    const data = await res.json();
+    if (data.success) {
+      localStorage.setItem("authToken", data.token);
+      localStorage.setItem("phone", phone);
+      setIsAuthenticated(true);
+      fetchLists();
+    } else {
+      alert("Invalid OTP");
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("phone");
+    setIsAuthenticated(false);
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="p-6 max-w-md mx-auto">
+      {!isAuthenticated ? (
+        <div className="space-y-4">
+          <h1 className="text-xl font-bold">Login</h1>
+          {step === "enterPhone" ? (
+            <>
+            <form onSubmit={(e) => {e.preventDefault(); sendOtp(); }}>
+              <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Button type="submit">Send Verification</Button>
+            </form>
+              
+            </>
+          ) : (
+            <>
+            <form onSubmit={(e) => {e.preventDefault(); verifyOtp(); }}>
+              <Input placeholder="Enter OTP" value={otp} onChange={(e) => setOtp(e.target.value)} />
+              <Button type="submit">Verify OTP</Button>
+            </form>
+            </>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      ) : (
+        <div>
+          <h1 className="text-xl font-bold mb-4">Your Lists <Button onClick={logout} variant="secondary">Logout</Button></h1>
+          <div className="space-y-2">
+            {lists.map((list) => (
+              <div key={list.id} className="bg-gray-100 p-2 rounded">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold cursor-pointer" onClick={() => toggleList(list.id)}>{list.name}</span>
+                  <Button variant="destructive" onClick={() => deleteList(list.id)}>Delete</Button>
+                </div>
+                {expandedList === list.id && (
+                  <div className="mt-2 p-2 bg-white rounded shadow">
+                    {list.items.map((item) => (
+                      <div key={`${list.id}-${item.id}`} className="flex items-center space-x-2">
+                        <Checkbox checked={item.checked} onCheckedChange={() => toggleItem(item.id, item.checked, list.id)} />
+                        <span className={item.checked ? "line-through" : ""}>{item.text}</span>
+                        <Button variant="destructive" onClick={() => removeItem(item.id, list.id)}>X</Button>
+                      </div>
+                    ))} 
+                    <div className="mt-2 flex space-x-2">
+                    <form key={`form-${list.id}`} onSubmit={(e) => { e.preventDefault(); addItem(list.id, newItems[list.id]); }}>
+                      <Input
+                        placeholder="New Item"
+                        value={newItems[list.id] || ""}
+                        onChange={(e) => setNewItems({ ...newItems, [list.id]: e.target.value })}
+                      />
+                      <Button type="submit">Add</Button>
+                    </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex space-x-2">
+          <form onSubmit={(e) => { e.preventDefault(); addList(); }}>
+            <Input placeholder="New List Name" value={newList} onChange={(e) => setNewList(e.target.value)} />
+            <Button onClick={addList}>Add</Button>
+          </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
