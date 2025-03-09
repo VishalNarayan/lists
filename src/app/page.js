@@ -197,18 +197,21 @@ export default function ListsApp() {
           <h1 className="text-xl font-bold mb-4">Your Lists <Button onClick={logout} variant="secondary">Logout</Button></h1>
           <div className="space-y-2">
             {lists.map((list) => (
-              <div key={list.id} className="bg-gray-100 p-2 rounded">
+              <div key={list.id} className="bg-white shadow-md rounded-xl p-4 flex flex-col space-y-2 transition-all duration-300">
                 <div className="flex justify-between items-center">
-                  <span className="font-bold cursor-pointer" onClick={() => toggleList(list.id)}>{list.name}</span>
-                  <Button variant="destructive" onClick={() => deleteList(list.id)}>Delete</Button>
+                  <span className="font-semibold text-lg cursor-pointer" onClick={() => toggleList(list.id)}>{list.name}</span>
+                  <Button onClick={() => deleteList(list.id)} className="text-red-500 text-lg">X</Button>
                 </div>
                 {expandedList === list.id && (
-                  <div className="mt-2 p-2 bg-white rounded shadow">
+                  <div className="bg-gray-50 rounded-lg p-2 space-y-2">
                     {list.items.map((item) => (
                       <div key={`${list.id}-${item.id}`} className="flex items-center space-x-2">
-                        <Checkbox checked={item.checked} onCheckedChange={() => toggleItem(item.id, item.checked, list.id)} />
-                        <span className={item.checked ? "line-through" : ""}>{item.text}</span>
-                        <Button variant="destructive" onClick={() => removeItem(item.id, list.id)}>X</Button>
+                        <Checkbox checked={item.checked} onCheckedChange={() => toggleItem(item.id, item.checked, list.id)} 
+                          className="w-6 h-6 accent-blue-600 focus:ring-2 focus:ring-blue-400" />
+                        <span className={item.checked ? "text-gray-500 opacity-60" : "text-black"}>
+                          {item.text}
+                        </span>
+                        <Button onClick={() => removeItem(item.id, list.id)}>❌</Button>
                       </div>
                     ))} 
                     <div className="mt-2 flex space-x-2">
