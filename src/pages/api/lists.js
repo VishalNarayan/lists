@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const phone = req.user.phone;
 
     if (req.method === "GET") {
-        const { data, error } = await supabase.from("lists").select("*");
+        const { data, error } = await supabase.from("lists").select("*").eq("user_phone", phone);
         console.log(data);
         if (error) return res.status(500).json({ success: false, error: error.message });
         return res.json({success: true, lists: data || [], message: `Authenticated as ${req.user.phone}`});
