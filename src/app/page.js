@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
+import { auth, RecaptchaVerifier, signInWithPhoneNumber } from "@/firebase";
 
 export default function ListsApp() {
   const [phone, setPhone] = useState("");
@@ -70,9 +71,7 @@ export default function ListsApp() {
       body: JSON.stringify({ listId, text })
     });
     const data = await res.json();
-    console.log('Api response:', data);
     if (data.success) {
-      console.log('success');
       setLists(lists.map((list) => list.id === listId ? { ...list, items: [...list.items, data.item] } : list));
       setNewItems((prev) => ({ ...prev, [listId]: "" }));
     } else {
@@ -108,18 +107,60 @@ export default function ListsApp() {
   };
 
   const sendOtp = async () => {
+    if (!phone) {
+      alert("Please enter a valid phone number.");
+      return;
+    }
 
+    try {
+      // Ensure reCAPTCHA exists
+      if (!window.recaptchaVerifier) {
+        window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
+          size: "invisible",
+          callback: () => sendOtp(),
+        });
+      }
+  
+      const appVerifier = window.recaptchaVerifier;
+      const confirmationResult = await signInWithPhoneNumber(auth, phone, appVerifier);
+      window.confirmationResult = confirmationResult;
+  
+      setStep("enterOtp");
+    } catch (error) {
+      console.error("Error sending OTP:", error);
+      alert(error.message);
+    }
+  }
 
-    const res = await fetch("/api/send-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ "phone":phone }),
-    });
+  const verifyOtp = async () => {
+    if (!otp) {
+      alert("Please enter the OTP.");
+      return;
+    }
 
-    const data = await res.json();
-    if (data.success) setStep("enterOtp");
-    else alert("Error sending OTP");
-  };
+    try {
+      const confirmationResult = window.confirmationResult;
+      const result = await confirmationResult.confirm(otp);
+      const user = result.user;
+
+      // Generate token
+      const res = await fetch("/api/generate-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone, code: otp }),
+      })
+      const data = await res.json();
+      if (data.success) {
+        localStorage.setItem("authToken", data.token);
+        localStorage.setItem("phone", phone);
+        setIsAuthenticated(true);
+        fetchLists();
+      }
+    } catch (error) {
+      console.error("Error verifying OTP:", error);
+      alert("Invalid OTP. Please try again.");
+    }
+  }
 
   const fetchLists = async() => {
     const token = localStorage.getItem("authToken");
@@ -134,35 +175,14 @@ export default function ListsApp() {
     if (data.success) {
       const listsWithItems = await Promise.all(
         data.lists.map(async (list) => {
-          console.log("List ID: ", list.id);
           const itemsRes = await fetch(`/api/items?listId=${list.id}`);
           const itemsData = await itemsRes.json();
-          itemsData.items.forEach(item => console.log("Item ID:", item.id));
           return { ...list, items: itemsData.success ? itemsData.items: []};
         })
       );
-      console.log(listsWithItems);
       setLists(listsWithItems);
     }
   }
-
-  const verifyOtp = async () => {
-    const res = await fetch("/api/verify-otp", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone, code: otp }),
-    });
-
-    const data = await res.json();
-    if (data.success) {
-      localStorage.setItem("authToken", data.token);
-      localStorage.setItem("phone", phone);
-      setIsAuthenticated(true);
-      fetchLists();
-    } else {
-      alert("Invalid OTP");
-    }
-  };
 
   const logout = () => {
     localStorage.removeItem("authToken");
@@ -181,7 +201,7 @@ export default function ListsApp() {
               <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
               <Button type="submit">Send Verification</Button>
             </form>
-              
+            <div id="recaptcha-container"></div>
             </>
           ) : (
             <>
