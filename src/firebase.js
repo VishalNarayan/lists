@@ -3,7 +3,7 @@ import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "firebase/auth
 
 const firebaseConfig = {
 
-    apiKey: "AIzaSyDUsChWfuwfdBurQrypcPfF5ZKtCqJ1ubE",
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   
     authDomain: "cash-spending.firebaseapp.com",
   
