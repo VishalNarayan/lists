@@ -117,7 +117,9 @@ export default function ListsApp() {
       if (!window.recaptchaVerifier) {
         window.recaptchaVerifier = new RecaptchaVerifier(auth, "recaptcha-container", {
           size: "invisible",
-          callback: () => sendOtp(),
+          callback: () => {
+            console.log("reCAPTCHA solved.")
+          },
         });
       }
   
