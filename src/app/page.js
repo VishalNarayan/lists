@@ -191,6 +191,7 @@ export default function ListsApp() {
   const logout = () => {
     localStorage.removeItem("authToken");
     localStorage.removeItem("phone");
+    setStep("enterPhone");
     setIsAuthenticated(false);
   }
 
