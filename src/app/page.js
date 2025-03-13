@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { auth, RecaptchaVerifier, signInWithPhoneNumber } from "@/firebase";
+import PhoneInputWithCountrySelect from "react-phone-number-input";
+import 'react-phone-number-input/style.css'
 
 export default function ListsApp() {
   const [phone, setPhone] = useState("");
@@ -200,7 +202,11 @@ export default function ListsApp() {
           {step === "enterPhone" ? (
             <>
             <form onSubmit={(e) => {e.preventDefault(); sendOtp(); }}>
-              <Input placeholder="Enter phone number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <PhoneInputWithCountrySelect
+                placeholder="Enter phone number"
+                defaultCountry="US"
+                value={phone}
+                onChange={(e) => {if (e) setPhone(e)}}/>
               <Button type="submit">Send Verification</Button>
             </form>
             <div id="recaptcha-container"></div>

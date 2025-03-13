@@ -22,6 +22,7 @@
     "next": "15.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-phone-number-input": "^3.4.12",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "twilio": "^5.4.5"
