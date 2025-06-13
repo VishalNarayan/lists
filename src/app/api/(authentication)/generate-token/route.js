@@ -28,7 +28,8 @@ export async function POST(request) {
         name: 'authToken',
         value: token,
         httpOnly: true,
-        secure: true // Keep as TRUE in production environments. 
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 365 * 24 * 60 * 60
     })
     console.log("Generated web token and set cookie.");
     return NextResponse.json({ success: true, token }, { status: 200 });
